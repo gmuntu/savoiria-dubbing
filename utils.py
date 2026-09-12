@@ -120,12 +120,13 @@ def parse_srt(srt_path):
     return segments
 
 def get_optimal_device():
-    if torch.backends.mps.is_available():
-        print("Accélération matérielle activée : Apple Silicon (MPS)")
-        return torch.device("mps")
-    elif torch.cuda.is_available():
+    if torch.cuda.is_available():
         print("Accélération matérielle activée : CUDA (GPU)")
         return torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        # Désactivé temporairement car F5-TTS crash sur MPS lors de longs batches
+        print("Avertissement : MPS désactivé (F5-TTS crash). Utilisation du CPU.")
+        return torch.device("cpu")
     else:
         print("Avertissement : Aucun GPU disponible. Utilisation du CPU.")
         return torch.device("cpu")
