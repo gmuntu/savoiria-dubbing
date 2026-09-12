@@ -211,7 +211,7 @@ def translate_to_french(text, engine="gemini", gemini_api_key=None, model="gemin
 
 
 def translate_batch_to_french(texts, engine="gemini", gemini_api_key=None, model="gemini-2.5-flash", batch_size=20, progress_callback=None):
-    \"\"\"Traduit une liste de textes en batch pour réduire le nombre d'appels API.
+    """Traduit une liste de textes en batch pour réduire le nombre d'appels API.
     
     Args:
         texts: Liste de tuples (id, text) à traduire
@@ -223,7 +223,7 @@ def translate_batch_to_french(texts, engine="gemini", gemini_api_key=None, model
     
     Returns:
         Dict {id: traduction} pour chaque segment
-    \"\"\"
+    """
     if not texts:
         return {}
     
