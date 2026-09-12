@@ -1,0 +1,10 @@
+torch
+torchaudio
+faster-whisper
+f5-tts
+ffmpeg-python
+yt-dlp
+ollama
+soundfile
+gradio
+google-genai

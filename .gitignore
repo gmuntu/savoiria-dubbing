@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+temp/
+output/
+input/
+*.zip
+*.app/
+lectures_input/
+lectures_output/
+*.mp4
+*.wav
