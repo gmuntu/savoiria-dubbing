@@ -1,0 +1,6 @@
+{
+  "name": "SavoirIA Dubbing",
+  "description": "Plateforme de doublage et traduction vidéo par intelligence artificielle créée par Ghislain Muntu",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
