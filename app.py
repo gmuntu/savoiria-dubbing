@@ -1,6 +1,7 @@
 import gradio as gr
 import os
 import shutil
+import base64
 import pandas as pd
 from utils import (
     get_optimal_device, extract_audio, download_youtube_video,
@@ -9,6 +10,16 @@ from utils import (
     assemble_final_video, parse_srt
 )
 from faster_whisper import WhisperModel
+
+# Charger le logo en Base64 pour l'intégration HTML
+def get_logo_base64():
+    logo_path = os.path.join(os.path.dirname(__file__), "logo.jpg")
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as f:
+            return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode('utf-8')
+    return ""
+
+LOGO_B64 = get_logo_base64()
 
 # --- Styles CSS : Landing Page Indigo-Blue (Inspiré de l'image CS50X) ---
 CUSTOM_CSS = """
@@ -49,28 +60,22 @@ body, .gradio-container {
     gap: 12px;
 }
 
-.nav-icon {
-    width: 42px;
-    height: 42px;
-    background: linear-gradient(135deg, #3b5bdb, #5c7cfa);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 22px;
-    box-shadow: 0 4px 12px rgba(59, 91, 219, 0.3);
+.nav-logo-img {
+    height: 48px;
+    width: auto;
+    object-fit: contain;
+    border-radius: 8px;
 }
 
 .nav-title {
-    font-size: 21px;
+    font-size: 22px;
     font-weight: 800;
-    color: #212529;
+    color: #1e293b;
     letter-spacing: -0.03em;
 }
 
 .nav-title .accent {
-    color: #3b5bdb;
+    color: #2b8a3e; /* Vert du logo SavoirAI */
 }
 
 .nav-profile {
@@ -293,8 +298,8 @@ fieldset label:has(input:checked) span {
     background-color: #edf2ff !important;
 }
 
-/* ===== Bouton Primaire (Bleu Indigo Solide) ===== */
-.btn-primary button {
+/* ===== Correction des Boutons (Forçage de la couleur Indigo) ===== */
+.btn-primary, .btn-primary button, button.primary {
     background: linear-gradient(135deg, #3b5bdb, #4c6ef5) !important;
     color: #ffffff !important;
     font-weight: 700 !important;
@@ -304,17 +309,15 @@ fieldset label:has(input:checked) span {
     padding: 14px 24px !important;
     box-shadow: 0 4px 12px rgba(59, 91, 219, 0.3) !important;
     transition: all 0.2s ease !important;
-    letter-spacing: -0.01em !important;
 }
 
-.btn-primary button:hover {
+.btn-primary:hover, .btn-primary button:hover, button.primary:hover {
     background: linear-gradient(135deg, #364fc7, #3b5bdb) !important;
     transform: translateY(-1px) !important;
     box-shadow: 0 6px 16px rgba(59, 91, 219, 0.4) !important;
 }
 
-/* ===== Bouton Secondaire (Blanc avec Bordure) ===== */
-.btn-outline button {
+.btn-outline, .btn-outline button, button.secondary {
     background: #ffffff !important;
     color: #343a40 !important;
     font-weight: 600 !important;
@@ -325,7 +328,7 @@ fieldset label:has(input:checked) span {
     transition: all 0.2s ease !important;
 }
 
-.btn-outline button:hover {
+.btn-outline:hover, .btn-outline button:hover, button.secondary:hover {
     background: #f8f9fa !important;
     border-color: #adb5bd !important;
     transform: translateY(-1px) !important;
@@ -361,16 +364,17 @@ fieldset label:has(input:checked) span {
     background: #fafafa !important;
 }
 
-/* ===== Console de Télémétrie ===== */
+/* ===== Console de Télémétrie Adoucie ===== */
 .terminal-log textarea {
     font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace !important;
-    font-size: 13px !important;
-    background: #1e1e2e !important;
-    color: #74c7ec !important;
-    border: 1px solid #313244 !important;
+    font-size: 13.5px !important;
+    background: #f8f9fa !important; /* Remplacé le noir par un gris ultra clair */
+    color: #212529 !important; /* Texte sombre lisible */
+    border: 1.5px solid #dee2e6 !important;
     border-radius: 12px !important;
     line-height: 1.65 !important;
     padding: 16px !important;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02) !important;
 }
 
 /* ===== Section Labels Conviviales ===== */
@@ -638,13 +642,16 @@ def run_all_express(youtube_url, video_file, srt_file, engine_choice, gemini_api
 # =====================================================================
 # Interface Utilisateur Gradio (Style Landing Page Indigo-Blue)
 # =====================================================================
-with gr.Blocks(title="SavoirIA Dubbing — Créé par Ghislain Muntu") as app:
+# Utilisation d'un thème neutre pour éviter que Gradio n'écrase notre CSS avec de l'orange
+theme = gr.themes.Soft(primary_hue="indigo", secondary_hue="blue")
+
+with gr.Blocks(title="SavoirIA Dubbing — Créé par Ghislain Muntu", theme=theme) as app:
 
     # ─── 1. Barre de Navigation ───
-    gr.HTML("""
+    gr.HTML(f"""
         <div class="navbar-landing">
             <div class="nav-brand">
-                <div class="nav-icon">🎬</div>
+                <img src="{LOGO_B64}" class="nav-logo-img" alt="SavoirAI Logo" />
                 <div class="nav-title">SavoirIA <span class="accent">Dubbing</span></div>
             </div>
             <div class="nav-profile">
