@@ -413,7 +413,7 @@ def cleanup_previous_run():
 # =====================================================================
 # Étape 1 : Analyse & Traduction (avec Batch Optimisé)
 # =====================================================================
-def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice, gemini_api_key):
+def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice, gemini_api_key, progress=gr.Progress()):
     has_url = bool(youtube_url and youtube_url.strip())
     has_file = video_file is not None
     has_srt = srt_file is not None
@@ -423,6 +423,7 @@ def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice
         return
 
     with keep_awake():
+        progress(0, desc="🚀 Démarrage de l'analyse...")
         logs = "🚀 DÉMARRAGE ÉTAPE 1 : ANALYSE & TRADUCTION\n"
         logs += "🔋 Mode veille désactivé pendant le traitement\n"
         logs += "—" * 50 + "\n"
@@ -437,6 +438,7 @@ def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice
 
         # 1. Source vidéo
         if has_url:
+            progress(0.1, desc="📥 Téléchargement de la vidéo...")
             url = youtube_url.strip()
             logs += f"📥 [YouTube] Téléchargement : {url}...\n"
             yield logs, None, None
@@ -451,6 +453,7 @@ def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice
                 yield logs, None, None
                 return
         else:
+            progress(0.1, desc="📁 Copie de la vidéo locale...")
             logs += "📁 [Fichier local] Copie du fichier vidéo...\n"
             yield logs, None, None
             shutil.copy2(video_file, video_input)
@@ -458,6 +461,7 @@ def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice
             yield logs, None, None
 
         # 2. Extraction audio
+        progress(0.3, desc="🎧 Extraction audio en cours...")
         logs += "\n🎧 [FFmpeg] Extraction de l'audio haute fidélité...\n"
         yield logs, None, None
         extract_audio(video_input, audio_temp)
@@ -465,6 +469,7 @@ def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice
         yield logs, None, None
 
         # 3. Voix de référence
+        progress(0.4, desc="🎤 Extraction de l'empreinte vocale...")
         logs += "\n🎤 [F5-TTS] Extraction de la voix de référence (10s)...\n"
         yield logs, None, None
         extract_reference_audio(audio_temp, ref_audio, start_time="00:00:01", duration=10)
@@ -473,6 +478,7 @@ def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice
 
         # 4. Transcription
         if has_srt:
+            progress(0.5, desc="📄 Lecture des sous-titres (SRT)...")
             logs += f"\n📄 [SRT] Lecture du fichier de sous-titres...\n"
             yield logs, None, None
             try:
@@ -484,6 +490,7 @@ def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice
                 yield logs, None, None
                 return
         else:
+            progress(0.5, desc="📝 Transcription vocale neuronale...")
             logs += "\n📝 [Faster-Whisper] Transcription neuronale en cours...\n"
             yield logs, None, None
             model = WhisperModel("small", device="cpu", compute_type="int8")
@@ -493,6 +500,7 @@ def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice
             yield logs, None, None
 
         # 5. Traduction BATCH (optimisée !)
+        progress(0.7, desc="🌐 Lancement de la traduction batch...")
         chosen_engine = "gemini" if "gemini" in engine_choice.lower() else "ollama"
         engine_name = "Gemini 2.5 Flash" if chosen_engine == "gemini" else "Ollama (Local gemma4)"
         logs += f"\n🌐 [Traduction Batch] Moteur actif : {engine_name}\n"
@@ -504,13 +512,19 @@ def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice
             (i, text) for i, (start, end, text) in enumerate(srt_segments) if text.strip()
         ]
 
+        def on_translation_progress(batch_num, total_batches):
+            fraction = 0.7 + (0.25 * (batch_num / total_batches))
+            progress(fraction, desc=f"⏳ Traduction : Batch {batch_num}/{total_batches}...")
+
         # Appel batch (au lieu de segment par segment)
         translations = translate_batch_to_french(
             texts_to_translate,
             engine=chosen_engine,
-            gemini_api_key=gemini_api_key
+            gemini_api_key=gemini_api_key,
+            progress_callback=on_translation_progress
         )
 
+        progress(0.95, desc="✅ Traduction terminée, finalisation...")
         logs += f"   ✅ {len(translations)} traductions reçues !\n"
         yield logs, None, None
 
@@ -530,6 +544,7 @@ def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice
             })
 
         df = pd.DataFrame(rows)
+        progress(1.0, desc="✨ Analyse et Traduction terminées !")
         logs += "\n" + "—" * 50 + "\n"
         logs += f"✨ ÉTAPE 1 TERMINÉE : {len(rows)} segments prêts pour révision !\n"
         logs += "👉 Modifiez la colonne 'Français' dans le tableau, puis lancez l'Étape 2.\n"
@@ -540,7 +555,7 @@ def step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice
 # =====================================================================
 # Étape 2 : Synthèse Vocale & Assemblage
 # =====================================================================
-def step2_synthesize_and_assemble(df_data):
+def step2_synthesize_and_assemble(df_data, progress=gr.Progress()):
     if df_data is None:
         yield "❌ Aucun tableau de segments disponible. Veuillez d'abord lancer l'Étape 1.", None
         return
@@ -559,6 +574,7 @@ def step2_synthesize_and_assemble(df_data):
         return
 
     with keep_awake():
+        progress(0, desc="🎙️ Démarrage de la synthèse vocale...")
         logs = "🎙️ DÉMARRAGE ÉTAPE 2 : CLONAGE VOCAL & ASSEMBLAGE FINAL\n"
         logs += "🔋 Mode veille désactivé pendant le traitement\n"
         logs += "—" * 50 + "\n"
@@ -575,7 +591,7 @@ def step2_synthesize_and_assemble(df_data):
         segments_data = []
         total_segments = len(df)
 
-        for idx, row in df.iterrows():
+        for i, (idx, row) in enumerate(df.iterrows()):
             seg_id = int(row.get("ID", idx))
             start_sec = float(row.get("Début (s)", 0.0))
             ref_text = str(row.get("Anglais (Original)", "")).strip()
@@ -583,6 +599,9 @@ def step2_synthesize_and_assemble(df_data):
 
             if not gen_text:
                 continue
+
+            fraction = (i / total_segments) * 0.8
+            progress(fraction, desc=f"🎙️ Génération voix : segment {i+1}/{total_segments}...")
 
             segment_output = f"output/segment_{seg_id}.wav"
             logs += f"🎙️ [{seg_id + 1}/{total_segments}] Synthèse vocale : \"{gen_text[:40]}...\"\n"
@@ -605,20 +624,24 @@ def step2_synthesize_and_assemble(df_data):
                 yield logs, None
 
         if not segments_data:
+            progress(1.0, desc="❌ Échec : aucun segment généré")
             logs += "\n❌ Aucun segment audio n'a pu être généré. Abandon.\n"
             yield logs, None
             return
 
         # Assemblage vidéo final avec FFmpeg
+        progress(0.85, desc="🎬 Assemblage vidéo avec FFmpeg en cours...")
         logs += f"\n🎬 [FFmpeg] Assemblage vidéo et mixage de {len(segments_data)} segments...\n"
         yield logs, None
 
         try:
             assemble_final_video(video_input, segments_data, final_output)
+            progress(1.0, desc="🎉 Doublage terminé avec succès !")
             logs += "\n" + "—" * 50 + "\n"
             logs += f"🎉 DOUBLAGE TERMINÉ À 100% !\nVidéo disponible : {final_output}\n"
             yield logs, final_output
         except Exception as e:
+            progress(1.0, desc="❌ Erreur d'assemblage")
             logs += f"\n❌ Erreur lors de l'assemblage : {e}\n"
             yield logs, None
 
@@ -626,16 +649,16 @@ def step2_synthesize_and_assemble(df_data):
 # =====================================================================
 # Workflow Tout-en-un Automatique (Express)
 # =====================================================================
-def run_all_express(youtube_url, video_file, srt_file, engine_choice, gemini_api_key):
+def run_all_express(youtube_url, video_file, srt_file, engine_choice, gemini_api_key, progress=gr.Progress()):
     last_df = None
-    for logs_step1, df, _ in step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice, gemini_api_key):
+    for logs_step1, df, _ in step1_analyze_and_translate(youtube_url, video_file, srt_file, engine_choice, gemini_api_key, progress=progress):
         last_df = df
         yield logs_step1, df, None
 
     if last_df is None or last_df.empty:
         return
 
-    for logs_step2, video_path in step2_synthesize_and_assemble(last_df):
+    for logs_step2, video_path in step2_synthesize_and_assemble(last_df, progress=progress):
         yield logs_step2, last_df, video_path
 
 

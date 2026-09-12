@@ -210,8 +210,8 @@ def translate_to_french(text, engine="gemini", gemini_api_key=None, model="gemin
         return text
 
 
-def translate_batch_to_french(texts, engine="gemini", gemini_api_key=None, model="gemini-2.5-flash", batch_size=20):
-    """Traduit une liste de textes en batch pour réduire le nombre d'appels API.
+def translate_batch_to_french(texts, engine="gemini", gemini_api_key=None, model="gemini-2.5-flash", batch_size=20, progress_callback=None):
+    \"\"\"Traduit une liste de textes en batch pour réduire le nombre d'appels API.
     
     Args:
         texts: Liste de tuples (id, text) à traduire
@@ -219,10 +219,11 @@ def translate_batch_to_french(texts, engine="gemini", gemini_api_key=None, model
         gemini_api_key: Clé API Gemini optionnelle
         model: Modèle Gemini à utiliser
         batch_size: Nombre max de segments par batch (défaut: 20)
+        progress_callback: Fonction(batch_num, total_batches) pour le suivi
     
     Returns:
         Dict {id: traduction} pour chaque segment
-    """
+    \"\"\"
     if not texts:
         return {}
     
@@ -248,9 +249,15 @@ def translate_batch_to_french(texts, engine="gemini", gemini_api_key=None, model
     results = {}
     
     # Découper en batches
+    total_batches = (len(texts) + batch_size - 1) // batch_size
+    
     for batch_start in range(0, len(texts), batch_size):
         batch = texts[batch_start:batch_start + batch_size]
+        batch_num = batch_start // batch_size + 1
         
+        if progress_callback:
+            progress_callback(batch_num, total_batches)
+            
         # Construire le prompt numéroté
         prompt_lines = []
         id_map = {}  # Mapping index_in_batch -> original_id
@@ -260,8 +267,6 @@ def translate_batch_to_french(texts, engine="gemini", gemini_api_key=None, model
             prompt_lines.append(f"[{batch_idx}] {text}")
         
         prompt = "\n".join(prompt_lines)
-        batch_num = batch_start // batch_size + 1
-        total_batches = (len(texts) + batch_size - 1) // batch_size
         print(f"📦 [Batch {batch_num}/{total_batches}] Traduction de {len(batch)} segments...")
         
         response_text = None
