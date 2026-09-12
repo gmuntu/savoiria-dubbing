@@ -18,6 +18,7 @@ torchaudio.load = patched_torchaudio_load
 
 import ffmpeg
 import os
+os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 import re
 import subprocess
 import yt_dlp
@@ -384,6 +385,13 @@ def get_f5_model(device=None):
 def synthesize_speech(ref_audio_path, ref_text, gen_text, output_path, device=None):
     """Synthétise la parole clonée en utilisant F5-TTS."""
     f5 = get_f5_model(device)
+    if device == "mps":
+        try:
+            import torch
+            torch.mps.synchronize()
+        except:
+            pass
+
     print(f"🎙️ [F5-TTS] Génération audio vers {output_path}...")
     try:
         wav, sample_rate, _ = f5.infer(
